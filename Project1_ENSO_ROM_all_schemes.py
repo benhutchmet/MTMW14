@@ -179,6 +179,7 @@ h_init = 0/150
 y0 = [1.125 / 7.5, 0 / 150]
 # initialize the RK4 scheme
 y = rk4(enso, y0, t)
+sst_anomaly_rk, thermocline_depth_rk = y[:, 0], y[:, 1]
 
 # run the other implementations: euler, AB2 and trapezoidal
 sst_anomaly, thermocline_depth, time = euler(T_init, h_init, mu, R, gamma, e_n,
@@ -187,4 +188,60 @@ sst_anomaly_ab, thermocline_depth_ab, time_ab = adams_bashforth(T_init, h_init,
                                                                 mu, R, gamma, e_n, xi_1, xi_2, dt, nt)
 sst_anomaly_tz, thermocline_depth_tz, time_tz = trapezoidal(T_init, h_init,
                                                             mu, R, gamma, e_n, xi_1, xi_2, dt, nt)
+
+# redimensionalise the results
+# for all of the sst_anomaly results, multiply by 7.5
+sst_anomaly = sst_anomaly * 7.5
+sst_anomaly_ab = sst_anomaly_ab * 7.5
+sst_anomaly_tz = sst_anomaly_tz * 7.5
+sst_anomaly_rk = sst_anomaly_rk * 7.5
+
+# for all of the thermocline_depth results, multiply by 150 to redimensionalise
+# then divide by 10 to convert to units of 10m
+thermocline_depth = thermocline_depth * 150/10
+thermocline_depth_ab = thermocline_depth_ab * 150/10
+thermocline_depth_tz = thermocline_depth_tz * 150/10
+thermocline_depth_rk = thermocline_depth_rk * 150/10
+
+# now plot the results as a time series
+# specify labels for each of the schemes used
+# first for a time series plot, for both the sst anomaly and thermocline depth
+# using one y-axis
+# specify two subplots in a 2x1 grid
+fig, (ax1, ax2) = plt.subplots(1, 2)
+# plot all of the SST anomaly results
+#ax1.plot(time, sst_anomaly, label='Euler T ($^{\circ}$C)')
+ax1.plot(time, sst_anomaly_ab, label='AB2 T ($^{\circ}$C)')
+#ax1.plot(time, sst_anomaly_tz, label='Trapezoidal T ($^{\circ}$C)')
+ax1.plot(time, sst_anomaly_rk, label='RK4 T ($^{\circ}$C)')
+# plot all of the thermocline depth results
+#ax1.plot(time, thermocline_depth, label='Euler h (10m)')
+ax1.plot(time, thermocline_depth_ab, label='AB2 h (10m)')
+#ax1.plot(time, thermocline_depth_tz, label='Trapezoidal h (10m)')
+ax1.plot(time, thermocline_depth_rk, label='RK4 h (10m)')
+# set the plot title as '$\mu$ = 2/3, neutral, linear case'
+ax1.title.set_text('Time series for T ($^{\circ}$C) and h (10m) :$\mu$ = 2/3, '
+                   'neutral, linear case')
+# specify the legend in the top right hand corner
+ax1.legend(loc='upper right')
+
+# now plot the phase space plot for all of the schemes using ax2
+#ax2.plot(sst_anomaly, thermocline_depth, label='Euler')
+ax2.plot(sst_anomaly_ab, thermocline_depth_ab, label='AB2')
+#ax2.plot(sst_anomaly_tz, thermocline_depth_tz, label='Trapezoidal')
+ax2.plot(sst_anomaly_rk, thermocline_depth_rk, label='RK4')
+# set the plot title as '$\mu$ = 2/3, neutral, linear case'
+ax2.title.set_text('Phase space plot for T ($^{\circ}$C) and h (10m): '
+                   '$\mu$ = 2/3, neutral, linear case')
+# specify the legend in the top right hand corner
+ax2.legend(loc='upper right')
+
+# specify a tight layout
+plt.tight_layout()
+
+# show the plot
+plt.show()
+
+# save the plot as 'combined_plot.png', specify high resolution png
+plt.savefig('combined_plot.png')
 

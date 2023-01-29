@@ -1,12 +1,16 @@
 # file for testing the RK4 scheme in isolation
 
+# import the required libraries
+import numpy as np
+import matplotlib.pyplot as plt
+
 # define the global variables
 
 # non-dimensionalised parameters
 
 T_nd = 7.5 # SST anomaly-scale (kelvin)
 h_nd = 150 # thermocline depth scale (m)
-t_nd = 2*30*24*60*60 # time-scale - 2 months in seconds
+t_nd = 2 # time-scale - 2 months
 
 # define the variables for Task A - neutral linear (deterministic) ROM
 
@@ -24,14 +28,14 @@ xi_1 = 0 # random wind stress forcing added to the system
 xi_2 = 0 # random heating added to the system
 
 # define the initial conditions
-T_e_init = 1.125
-h_w_init = 0
+T_e_init = 1.125/T_nd
+h_w_init = 0/h_nd
 
 # specify the timestep
-dt = 10
+dt = 0.02
 
 # specify the number of time steps
-nt = 1000
+nt = int(41/dt)
 
 # initialize arrays to store the results
 time = np.zeros(nt)
@@ -67,16 +71,48 @@ def RK4(T_e, h_w, dt):
     k1 = f1(T_e, h_w)
     l1 = f2(T_e, h_w)
 
-    k2 = f1(T_e + k1/2, h_w + l1/2)
-    l2 = f2(T_e + k1/2, h_w + l1/2)
+    k2 = f1(T_e + k1 * dt/2, h_w + l1 * dt/2)
+    l2 = f2(T_e + k1 * dt/2, h_w + l1 * dt/2)
 
-    k3 = f1(T_e + k2/2, h_w + l2/2)
-    l3 = f2(T_e + k2/2, h_w + l2/2)
+    k3 = f1(T_e + k2 * dt/2, h_w + l2 * dt/2)
+    l3 = f2(T_e + k2 * dt/2, h_w + l2 * dt/2)
 
-    k4 = f1(T_e + k3, h_w + l3)
-    l4 = f2(T_e + k3, h_w + l3)
+    k4 = f1(T_e + k3 * dt, h_w + l3 * dt)
+    l4 = f2(T_e + k3 * dt, h_w + l3 * dt)
 
     T_e_new = T_e + dt/6 * (k1 + 2*k2 + 2*k3 + k4)
     h_w_new = h_w + dt/6 * (l1 + 2*l2 + 2*l3 + l4)
 
     return T_e_new, h_w_new
+
+
+
+# set the initial conditions
+T_e[0] = T_e_init
+h_w[0] = h_w_init
+
+# now run the RK4 scheme in a for loop
+for i in range(1,nt-1):
+    T_e[i], h_w[i] = RK4(T_e[i-1], h_w[i-1], dt)
+
+    time[i] = (time[i-1] + dt)
+
+# redimensionalise the results
+T_e_rd = T_e*T_nd
+h_w_rd = h_w*h_nd
+
+
+# plot the results on two seperate y-axes
+fig, ax1 = plt.subplots()
+ax1.plot(time, T_e, 'b-')
+ax1.set_xlabel('time (s)')
+ax1.set_ylabel('T_e', color='b')
+for tl in ax1.get_yticklabels():
+    tl.set_color('b')
+ax2 = ax1.twinx()
+ax2.plot(time, h_w, 'r-')
+ax2.set_ylabel('h_w', color='r')
+for tl in ax2.get_yticklabels():
+    tl.set_color('r')
+plt.show()
+

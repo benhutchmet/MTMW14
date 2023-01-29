@@ -65,7 +65,7 @@ y0 = [1.125 / 7.5, 0 / 150]  # initial condition: T = 0.5, S = 0.5
 y = rk4(enso, y0, t)
 # redimensionalise the output
 Te_rd = y[:, 0] * 7.5  # for the SST temperature
-hw_rd = y[:, 1] * 150  # for the thermocline depth
+hw_rd = y[:, 1] * 15  # for the thermocline depth in units of 10m
 
 # plot the time series
 plt.plot(t, Te_rd, label='$T_E$')
@@ -73,4 +73,8 @@ plt.plot(t, hw_rd, label='$h_w$')
 plt.xlabel('Time')
 plt.ylabel('Values')
 plt.legend()
+plt.show()
+
+# plot the phase space plot
+plt.plot(Te_rd, hw_rd)
 plt.show()

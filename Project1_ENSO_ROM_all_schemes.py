@@ -212,6 +212,7 @@ fig, (ax1, ax2) = plt.subplots(1, 2)
 # plot all of the SST anomaly results
 #ax1.plot(time, sst_anomaly, label='Euler T ($^{\circ}$C)')
 ax1.plot(time, sst_anomaly_ab, label='AB2 T ($^{\circ}$C)')
+# specify a dashed linestyle for the trapezoidal scheme
 #ax1.plot(time, sst_anomaly_tz, label='Trapezoidal T ($^{\circ}$C)')
 ax1.plot(time, sst_anomaly_rk, label='RK4 T ($^{\circ}$C)')
 # plot all of the thermocline depth results
@@ -220,8 +221,7 @@ ax1.plot(time, thermocline_depth_ab, label='AB2 h (10m)')
 #ax1.plot(time, thermocline_depth_tz, label='Trapezoidal h (10m)')
 ax1.plot(time, thermocline_depth_rk, label='RK4 h (10m)')
 # set the plot title as '$\mu$ = 2/3, neutral, linear case'
-ax1.title.set_text('Time series for T ($^{\circ}$C) and h (10m) :$\mu$ = 2/3, '
-                   'neutral, linear case')
+ax1.title.set_text('Time series for T ($^{\circ}$C) and h (10m)')
 # specify the legend in the top right hand corner
 ax1.legend(loc='upper right')
 
@@ -231,8 +231,8 @@ ax2.plot(sst_anomaly_ab, thermocline_depth_ab, label='AB2')
 #ax2.plot(sst_anomaly_tz, thermocline_depth_tz, label='Trapezoidal')
 ax2.plot(sst_anomaly_rk, thermocline_depth_rk, label='RK4')
 # set the plot title as '$\mu$ = 2/3, neutral, linear case'
-ax2.title.set_text('Phase space plot for T ($^{\circ}$C) and h (10m): '
-                   '$\mu$ = 2/3, neutral, linear case')
+# set a font size of 8
+ax2.title.set_text('Phase space for T ($^{\circ}$C) and h (10m)')
 # specify the legend in the top right hand corner
 ax2.legend(loc='upper right')
 
@@ -245,3 +245,134 @@ plt.show()
 # save the plot as 'combined_plot.png', specify high resolution png
 plt.savefig('combined_plot.png')
 
+
+def eigenvalue_analysis(T_init, h_init, mu, R, gamma, e_n, xi_1, xi_2, dt, nt):
+    T_e, h_w, time = euler(T_init, h_init, mu, R, gamma, e_n, xi_1, xi_2, dt,
+                           nt)
+
+    # Initialize an array to store the magnitude of the eigenvalues
+    mag_eigenvalues = np.zeros(nt)
+
+    # Loop over each time step
+    for i in range(1, nt):
+        system_matrix = np.array(
+            [[1 + dt * R, dt * gamma], [dt * mu * h_w[i - 1], 1 + dt * mu * R]])
+        eigenvalues = np.linalg.eigvals(system_matrix)
+        mag_eigenvalues[i] = np.abs(eigenvalues).max()
+
+    print(mag_eigenvalues)
+    # Plot the magnitude of the eigenvalues against the time step size
+    # make the size of the scatter points smaller and the type as crosses
+
+
+    plt.plot(t, mag_eigenvalues, 'o-')
+    plt.xlabel('Time step size (dt)')
+    plt.ylabel('Magnitude of eigenvalues')
+    plt.title('Eigenvalue analysis of the ocean recharge oscillator model')
+    # add a horizontal line at 1
+    plt.axhline(y=1, color='r', linestyle='--')
+    # set y limits between 0.8 and 1.5
+    plt.ylim(0.8, 1.5)
+    plt.show()
+    plt.savefig('stability_analysis_explicit_euler.png')
+
+
+# define the sub-critical and super critical values of \mu
+# redefine the global variables
+
+# define the global variables
+
+# non-dimensionalised parameters
+
+T_nd = 7.5 # SST anomaly-scale (kelvin)
+h_nd = 150 # thermocline depth scale (m)
+t_nd = 2*30*24*60*60 # time-scale - 2 months in seconds
+
+# define the variables for task B - neutral linear (deterministic) ROM
+
+mu_c = 2/3 # critical value for the coupling parameter
+mu_subc = 1/3
+mu = mu_subc # set the coupling value to its subcritical parameter
+b_0 = 2.5 # high end value for the coupling parameter
+b = b_0*mu # measure of the thermocline slope
+gamma = 0.75 # feedback of the thermocline gradient on the SST gradient
+c = 1 # damping rate of SST anomalies
+R = gamma*b - c # describes the Bjerknes positive feedback process
+r = 0.25 # damping of upper ocean heat content
+alpha = 0.125 # relates enhanced easterly wind stress to the recharge of ocean heat content
+e_n = 0 # degree of nonlinearity of ROM
+xi_1 = 0 # random wind stress forcing added to the system
+xi_2 = 0 # random heating added to the system
+
+# run the RK4 scheme
+# define the time-step parameters
+dt = 0.02
+nt = int(41 / 0.02)
+t = np.linspace(0, 41, nt)
+
+# define the non-dimensionalised initial conditions for the three schemes
+# euler, AB2 and trapezoidal
+T_init = 1.125/7.5
+h_init = 0/150
+
+# run the AB scheme
+
+sst_anomaly_ab_subc, thermocline_depth_ab_subc, time_ab_subc = adams_bashforth(T_init, h_init,
+                                                                mu, R, gamma, e_n, xi_1, xi_2, dt, nt)
+
+# define the non-dimensionalised initial conditions for the RK4 scheme
+y0 = [1.125 / 7.5, 0 / 150]
+# initialize the RK4 scheme
+y_subc = rk4(enso, y0, t)
+sst_anomaly_rk_subc, thermocline_depth_rk_subc = y_subc[:, 0], y_subc[:, 1]
+
+# now for the supercritical
+
+mu_supc = 1
+mu = mu_supc # set the coupling value to its subcritical parameter
+b_0 = 2.5 # high end value for the coupling parameter
+b = b_0*mu # measure of the thermocline slope
+gamma = 0.75 # feedback of the thermocline gradient on the SST gradient
+c = 1 # damping rate of SST anomalies
+R = gamma*b - c # describes the Bjerknes positive feedback process
+
+# run the AB scheme
+
+sst_anomaly_ab_supc, thermocline_depth_ab_supc, time_ab_supc = adams_bashforth(T_init, h_init,
+                                                                mu, R, gamma, e_n, xi_1, xi_2, dt, nt)
+
+# define the non-dimensionalised initial conditions for the RK4 scheme
+y0 = [1.125 / 7.5, 0 / 150]
+# initialize the RK4 scheme
+y_supc = rk4(enso, y0, t)
+sst_anomaly_rk_supc, thermocline_depth_rk_supc = y_supc[:, 0], y_supc[:, 1]
+
+# now plot the subcrcitical and supercritical cases for both time series and
+# phase space plots
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+ax1.plot(time_ab_subc, sst_anomaly_ab_subc, label='AB2 subc')
+ax1.plot(time_ab_supc, sst_anomaly_ab_supc, label='AB2 supc')
+ax1.plot(t, sst_anomaly_rk_subc, label='RK4 subc')
+ax1.plot(t, sst_anomaly_rk_supc, label='RK4 supc')
+ax1.set_xlabel('Time')
+# set the title of the plot
+ax1.set_title('Time series for T and h')
+# specify the legend in the upper right corner
+ax1.legend(loc='upper right')
+
+ax2.plot(thermocline_depth_ab_subc, sst_anomaly_ab_subc, label='AB2 subc')
+ax2.plot(thermocline_depth_ab_supc, sst_anomaly_ab_supc, label='AB2 supc')
+ax2.plot(thermocline_depth_rk_subc, sst_anomaly_rk_subc, label='RK4 subc')
+ax2.plot(thermocline_depth_rk_supc, sst_anomaly_rk_supc, label='RK4 supc')
+# set the title of the plot
+ax2.set_title('Phase space plot for T and h')
+# specify the legend in the upper right corner
+ax2.legend(loc='upper right')
+
+# specify a super title for the whole figure
+fig.suptitle('Subcritical and supercritical cases for the ROM')
+
+plt.show()
+
+# save the figure
+fig.savefig('subc_and_supc_cases.png')

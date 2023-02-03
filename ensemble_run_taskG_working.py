@@ -20,6 +20,7 @@ gamma = 0.75 # feedback of the thermocline gradient on the SST gradient
 c = 1 # damping rate of SST anomalies
 r = 0.25 # damping of upper ocean heat content
 alpha = 0.125 # relates enhanced easterly wind stress to the recharge of ocean heat content
+#xi_1 = 0.0 # random wind stress forcing starting value
 xi_2 = 0.0 # random heating added to the system
 
 # define the enso Task F scheme which includes the coupling parameter
@@ -82,6 +83,7 @@ def rk4_taskF(f, y0, t):
         k4 = h * f(y[i] + k3, t[i + 1])
         y[i + 1] = y[i] + (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
+        print('xi_1 is...',xi_1)
     return y
 
 # set up the time step for the RK4 scheme
@@ -118,6 +120,9 @@ for i in range(len(T_0)):
         T[i, j] = y[:, 0] * T_nd
         h[i, j] = y[:, 1] * h_nd
 
+#print('T is ,',T[:, :, 1])
+#print('h is ,',h[:, :, 1])
+
 # plot the results
 # set up the figure
 fig, ax = plt.subplots(1, 1, figsize=(10, 10))
@@ -130,6 +135,8 @@ fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 cmap = plt.get_cmap('viridis')
 # set up the colour range
 c_range = np.linspace(0, 1, len(T_0))
+
+
 
 # set up the for loop to plot each ensemble member
 for i in range(len(T_0)):
@@ -143,23 +150,32 @@ ax.set_title('SST anomaly time series for each ensemble member')
 
 plt.show()
 
-# plot the results
+# save the figure
+fig.savefig('taskG_ensemble_test.png', dpi=300)
+
+
+# now we want to plot the phase space for all of the ensemble members
+
 # set up the figure
 fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 
-# we want to plot the time series of SST anomalies for each ensemble member
-# on the same plot so we will use a for loop
-# we want these plots to be in the form of plume diagrams
-
 # set up the colour map
 cmap = plt.get_cmap('viridis')
+
 # set up the colour range
 c_range = np.linspace(0, 1, len(T_0))
 
 # set up the for loop to plot each ensemble member
 for i in range(len(T_0)):
     for j in range(len(h_0)):
-        ax.plot(T[i, j], h[i, j], color=cmap(c_range[i]), alpha=0.5)
+        ax.plot(T[i, j], h[i, j], color=cmap(c_range[i]), alpha=0.3)
 
 # set up the axes
-ax.set_xlabel('SST anomaly (K)')
+ax.set_xlabel('T (K)')
+ax.set_ylabel('h (m)')
+
+plt.show()
+
+# save the figure
+fig.savefig('taskG_phase_space_test.png', dpi=300)
+#%%

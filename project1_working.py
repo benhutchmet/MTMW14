@@ -223,6 +223,8 @@ def enso(y, t, mu, e_n, xi_1, annual_mu=False):
     # define the ODEs
     dTdt = R*y[0] + gamma*y[1] - e_n*(y[1] + b*y[0])**3 + gamma*xi_1 + xi_2
     dSdt = -r*y[1] - alpha*b*y[0] - alpha*xi_1
+    
+    #print('xi_1 =', xi_1)
 
     return np.array([dTdt, dSdt])
     
@@ -248,6 +250,9 @@ def rk4(f, y0, t, nt, xi_1_forcing=False):
     f_ran = 0.2
     tau_cor = 1/60 # 1 day non-dimensionalised
     tau = 12/2 # months non-dimensionalised
+    mu_0 = 0.75
+    mu_ann = 0.2
+
     
     # set up the random numbers
     W = np.random.uniform(-1, 1, nt)
@@ -259,14 +264,15 @@ def rk4(f, y0, t, nt, xi_1_forcing=False):
     
     # run the for loop
     for i in range(n - 1):
-    
+
         # specify whether or not to apply random wind stress forcing
         if xi_1_forcing:
             xi_1 = f_ann * np.cos(2 * np.pi * t[i] / tau) + f_ran * W[i] * (
                 tau_cor / dt)
         else:
             xi_1 = 0
-        
+
+
         h = t[i + 1] - t[i]
         k1 = h * f(y[i], t[i])
         k2 = h * f(y[i] + 0.5 * k1, t[i] + 0.5 * h)
@@ -613,6 +619,7 @@ def Task_B(dt=0.02, no_periods=5, len_period=41):
     # set up the time step parameters
     dt = dt
     nt = int(no_periods*len_period/dt)
+    t = np.linspace(0,no_periods*len_period,nt)/tnd
 
     # define the initial conditions
     T_init = 1.125/Tnd
@@ -626,8 +633,8 @@ def Task_B(dt=0.02, no_periods=5, len_period=41):
     xi_1 = 0.0
 
     # define the sub-critical and super-critical values of mu
-    mu_sub = 0.5
-    mu_sup = 1.0
+    mu_sub = 0.5 # sub-critical value of mu
+    mu_sup = 0.7 # super-critical value of mu
 
     # initialize the RK4 scheme for the sub-critical case
     y_sub = rk4(lambda y, t: enso(y, t, mu_sub, e_n, xi_1, annual_mu=False), y0,
@@ -641,9 +648,531 @@ def Task_B(dt=0.02, no_periods=5, len_period=41):
     sst_anomaly_sub, thermocline_depth_sub = y_sub[:,0], y_sub[:,1]
     sst_anomaly_sup, thermocline_depth_sup = y_sup[:,0], y_sup[:,1]
 
+    print(sst_anomaly_sup)
+    print(thermocline_depth_sup)
+
     # redimensionalise time
     t = t*tnd
 
+    # plot the results as a series of 2 subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+
+    # plot the time series with the sub-critical case on the left and the
+    # supercritical case on the right
+    ax1.plot(t, sst_anomaly_sub, 'b', label='Sub-critical T ($^\circ$C)')
+    ax1.plot(t, thermocline_depth_sub, 'r', label='Sub-critical depth (10m)')
+    # set x-label
+    ax1.set_xlabel('Time (Months)')
+    # specify legend
+    ax1.legend(loc='upper right')
+
+    ax2.plot(t, sst_anomaly_sup, 'b', label='Super-critical T ($^\circ$C)')
+    ax2.plot(t, thermocline_depth_sup, 'r', label='Super-critical depth (10m)')
+    # set x-label
+    ax2.set_xlabel('Time (Months)')
+    # specify legend
+    ax2.legend(loc='upper right')
+
+    # specify a tight layout
+    plt.tight_layout()
+
+    # show the plot
+    plt.show()
+
+    # save the plot
+    plt.savefig('Task_B_time_series_RK4.png')
+
+    # now plot the phase space plots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+
+    # plot the phase space plots with the sub-critical case on the left and the
+    # supercritical case on the right
+    # specify a colorbar for the time variable with values from 0 to 200
+    cmap = plt.cm.get_cmap('viridis', 200)
+    # plot the sub-critical case
+    ax1.scatter(sst_anomaly_sub, thermocline_depth_sub, c=t, cmap=cmap,
+                label='Sub-critical')
+    # set x-label
+    ax1.set_xlabel('SST anomaly ($^\circ$C)')
+    # set y-label
+    ax1.set_ylabel('Thermocline depth (10m)')
+    # specify legend
+    ax1.legend(loc='upper right')
+
+    # plot the super-critical case
+    ax2.scatter(sst_anomaly_sup, thermocline_depth_sup, c=t, cmap=cmap,
+                label='Super-critical')
+    # set x-label
+    ax2.set_xlabel('SST anomaly ($^\circ$C)')
+    # set y-label
+    ax2.set_ylabel('Thermocline depth (10m)')
+    # specify legend
+    ax2.legend(loc='upper right')
+
+    # specify a tight layout
+    plt.tight_layout()
+
+    # specify a shared colorbar with the label 'Time (months)'
+    fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=[ax1, ax2], label='Time (fraction)')
+
+    # show the figure
+    plt.show()
+
+    # save the figure
+    plt.savefig('Task_B_phase_space_RK4.png')
+
+# test the behaviour of the ROM with sub-critical and super-critical settings of
+# the coupling parameter mu
+# Task_B()
+
+# now extend the model to include the impacts of non-linearity in task C
+
+def Task_C(dt=0.02, no_periods=5, len_period=41):
+    """
+    Task C: extending the ROM model to include the impacts of non-linearity.
+    :param dt:
+    :param no_periods:
+    :param len_period:
+    :return:
+    none.
+    """
+
+# set up the time step parameters
+    dt = dt
+    nt = int(no_periods*len_period/dt)
+    t = np.linspace(0,no_periods*len_period,nt)/tnd
+
+    # define the initial conditions
+    T_init = 1.125/Tnd
+    h_init = 0.0/hnd
+    # for the Rk4 scheme
+    y0 = [1.125/Tnd, 0/hnd]
+
+    # define the parameters
+    mu = mu_c = 2/3
+    e_n = 0.0
+    xi_1 = 0.0
+
+    # define the value for non-linearity
+    e_n = 0.1 # turns non-linearity on
+
+    # redimensionalise time
+    t = t*tnd
+
+    # initialize the RK4 scheme
+    y = rk4(lambda y, t: enso(y, t, mu, e_n, xi_1, annual_mu=False), y0, t, nt,
+            xi_1_forcing=False)
+    sst_anomaly, thermocline_depth = y[:,0], y[:,1]
+
+    # plot a phase space plot for this case
+    # mu = 2/3, e_n = 0.1
+
+    # specify a colorbar for the time variable
+    cmap = plt.cm.get_cmap('viridis')
+    # plot the phase space plot with a smaller point size
+    plt.scatter(sst_anomaly, thermocline_depth, c=t, cmap=cmap, s=0.8,
+                label =
+                '$\mu$ ' '=' '0.8, ' '$e_n$ = ' '0.1')
+    # set x-label
+    plt.xlabel('SST anomaly ($^\circ$C)')
+    # set y-label
+    plt.ylabel('Thermocline depth (10m)')
+    # specify legend
+    plt.legend(loc='upper right')
+    # specify a tight layout
+    plt.tight_layout()
+    # specify a shared colorbar with the label 'Time (months)'
+    plt.colorbar(plt.cm.ScalarMappable(cmap=cmap), label='Time (fraction)')
+    # show the figure
+    plt.show()
+    # save the figure
+    plt.savefig('Task_C_phase_space_RK4_stable_mu_non_linear.png')
+
+    # now run RK4 again, but for an updated value of mu
+    mu = 0.8
+
+    # initialize the RK4 scheme
+    y = rk4(lambda y, t: enso(y, t, mu, e_n, xi_1, annual_mu=False), y0, t, nt,
+            xi_1_forcing=False)
+    sst_anomaly, thermocline_depth = y[:,0], y[:,1]
+
+    # plot a phase space plot for this case
+    # mu = 0.8, e_n = 0.1
+    cmap = plt.cm.get_cmap('viridis')
+    # plot the phase space plot
+    plt.scatter(sst_anomaly, thermocline_depth, c=t, cmap=cmap,s=0.8, label =
+    '$\mu$ ' '=' '0.8, ' '$e_n$ = ' '0.1')
+    # set x-label
+    plt.xlabel('SST anomaly ($^\circ$C)')
+    # set y-label
+    plt.ylabel('Thermocline depth (10m)')
+    # specify legend
+    plt.legend(loc='upper right')
+    # specify a tight layout
+    plt.tight_layout()
+    # specify a shared colorbar with the label 'Time (fraction)'
+    plt.colorbar(plt.cm.ScalarMappable(cmap=cmap), label='Time (fraction)')
+    # show the figure
+    plt.show()
+    # save the figure
+    plt.savefig('Task_C_phase_space_RK4_unstable_mu_non_linear.png')
+
+# now run task C
+# Task_C()
+
+# now extend the model to allow the coupling parameter to vary on an annual
+# cycle in task D
+
+def Task_D(dt=0.02, no_periods=5, len_period=41):
+    """
+    Task D: Testing the self-excitation hypothesis by allowing the coupling
+    parameter to vary on an annual cycle.
+    :param dt: time step size.
+    :param no_periods: number of periods to run the model for.
+    :param len_period: the length of a single period.
+    :return:
+    none.
+    """
+
+    # set up the time step parameters
+    dt = dt
+    nt = int(no_periods*len_period/dt)
+    t = np.linspace(0,no_periods*len_period,nt)/tnd
+
+    # define the initial conditions
+    T_init = 1.125/Tnd
+    h_init = 0.0/hnd
+    # for the Rk4 scheme
+    y0 = [1.125/Tnd, 0/hnd]
+
+    # define the parameters
+    mu = mu_c = 2/3
+    e_n = 0.0
+    xi_1 = 0.0
+
+    # set up the parameters for the annual cycle
+    mu_ann = 0.2
+    mu_0 = 0.75
+    tau = 12/tnd # 12 months in units of tnd (time normalised)
+
+    # define the value for non-linearity
+    e_n = 0.1 # turns non-linearity on
+
+    # redimensionalise time
+    t = t*tnd
+
+    # initialize the RK4 scheme
+    y = rk4(lambda y, t: enso(y, t, mu, e_n, xi_1, annual_mu=True), y0, t,
+            nt, xi_1_forcing=False)
+    sst_anomaly, thermocline_depth = y[:,0], y[:,1]
+
+    # plot a phase space plot for this case
+    # mu = annual cycle, e_n = 0.1
+    cmap = plt.cm.get_cmap('viridis')
+    # plot the phase space plot
+    plt.scatter(sst_anomaly, thermocline_depth, c=t, cmap=cmap,s=0.8, label =
+    '$\mu$ ' '=' 'annual cycle, ' '$e_n$ = ' '0.1')
+    # set x-label
+    plt.xlabel('SST anomaly ($^\circ$C)')
+    # set y-label
+    plt.ylabel('Thermocline depth (10m)')
+    # specify legend
+    plt.legend(loc='upper right')
+    # specify a tight layout
+    plt.tight_layout()
+    # specify a shared colorbar with the label 'Time (fraction)'
+    plt.colorbar(plt.cm.ScalarMappable(cmap=cmap), label='Time (fraction)')
+    # show the figure
+    plt.show()
+    # save the figure
+    plt.savefig('Task_D_phase_space_RK4_annual_cycle_non_linear.png')
+
+    # now plot the time series for the SST anomaly and thermocline depth
+    # for the annual cycle case
+    # with two y-axes, one for sst anomaly and one for thermocline depth
+    fig, ax1 = plt.subplots()
+    # plot the sst anomaly
+    ax1.plot(t, sst_anomaly, color='tab:blue', label='SST anomaly')
+    ax1.set_xlabel('Time (months)')
+    ax1.set_ylabel('SST anomaly ($^\circ$C)', color='tab:blue')
+    ax1.tick_params(axis='y', labelcolor='tab:blue')
+    # plot the thermocline depth
+    ax2 = ax1.twinx()
+    ax2.plot(t, thermocline_depth, color='tab:red', label='Thermocline depth')
+    ax2.set_ylabel('Thermocline depth (10m)', color='tab:red')
+    ax2.tick_params(axis='y', labelcolor='tab:red')
+    # specify legend containing both lines
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper right')
+    # include a textbox in the top left with the values of the parameters
+    # mu = annual cycle, e_n = 0.1
+    plt.text(0.05, 6.2, '$\mu$ ' '=' 'annual cycle, ' '$e_n$ = ' '0.1')
+    # specify a tight layout
+    plt.tight_layout()
+    # show the figure
+    plt.show()
+    # save the figure
+    plt.savefig('Task_D_time_series_RK4_annual_cycle_non_linear.png')
+
+# now run task D
+#Task_D()
+
+# now extend the model to include random wind stress forcing in task E
+
+# define RK4 task E
+# define the function for the fourth-order Runge-Kutta scheme
+def rk4_TaskE(f, y0, t):
+    """
+    Solve a system of ordinary differential equations using the RK4 method.
+    f: function that defines the system of ODEs.
+    y0: initial condition.
+    t: array of equally spaced time points for which to solve the ODE.
+    """
+    # define the global variables for Task D
+    e_n = 0.0 # no non-linearity for task D
+    mu_0 = 2/3 # set back to critical value
+    mu_ann = 0.2
+    tau = 12/2 # months non-dimensionalised
+    f_ann = 0.02
+    f_ran = 0.2
+    tau_cor = 1/60 * 2 # 1 day non-dimensionalised 2 months = 60 days
+
+    dt = 1/30
+    # define nt for 5 periods
+    nt = int(5*41/dt)
+
+    # set up the random numbers
+    W = np.random.uniform(-1, 1, nt)
+
+
+    n = len(t)
+    y = np.zeros((n, len(y0)))
+    y[0] = y0
+
+    for i in range(n - 1):
+
+        # specify the random wind stress forcing
+        xi_1 = f_ann*np.cos(2*np.pi*t[i]/tau) + f_ran*W[i]*(tau_cor/dt)
+
+        # the rest of the RK4 scheme
+        h = t[i + 1] - t[i]
+        k1 = h * f(y[i], t[i])
+        k2 = h * f(y[i] + 0.5 * k1, t[i] + 0.5 * h)
+        k3 = h * f(y[i] + 0.5 * k2, t[i] + 0.5 * h)
+        k4 = h * f(y[i] + k3, t[i + 1])
+        y[i + 1] = y[i] + (k1 + 2 * k2 + 2 * k3 + k4) / 6
+
+    # testing xi_1
+    print('xi_1 mean =', np.mean(xi_1))
+    print('xi_1 max =', np.max(xi_1))
+    print('xi_1 min =', np.min(xi_1))
+    print('xi_1 shape =', np.shape(xi_1))
+
+    # dimensionalise the results
+    y[:, 0] = y[:, 0] * Tnd # for the SST anomalies (K)
+    y[:, 1] = y[:, 1] * hnd/10 # for the thermocline depth (m)
+
+    return y
+
+
+# define a function for the random wind stress forcing
+def xi_1_random_forcing(t, f_ann, f_ran, tau_cor, tau, nt):
+    """
+    Define the random wind stress forcing.
+    -----------------
+    Inputs:
+    t: time.
+    f_ann: annual cycle forcing.
+    f_ran: random forcing.
+    tau_cor: correlation time.
+    tau: period.
+    -----------------
+    Returns:
+    xi_1: random wind stress forcing.
+    """
+
+    # define the random numbers
+    W = np.random.uniform(-1, 1, nt)
+
+    # define the random wind stress forcing
+    xi_1 = f_ann * np.cos(2 * np.pi * t / tau) + f_ran * W * (tau_cor / dt)
+
+    return xi_1
+
+# define the function for the fourth-order Runge-Kutta scheme
+def rk4_taskE(f, y0, t):
+    """
+    Solve a system of ordinary differential equations using the RK4 method.
+    f: function that defines the system of ODEs.
+    y0: initial condition.
+    t: array of equally spaced time points for which to solve the ODE.
+    """
+    # define the global variables for Task D
+    e_n = 0.0 # no non-linearity for task D
+    mu_0 = 2/3 # set back to critical value
+    mu_ann = 0.2
+    tau = 12/2 # months non-dimensionalised
+    f_ann = 0.02
+    f_ran = 0.2
+    tau_cor = 1/60 * 2 # 1 day non-dimensionalised 2 months = 60 days
+
+    dt = 1/30 # 1 day non-dimensionalised 2 months = 60 days
+    nt = int(5*41/dt)
+
+    # set up the random numbers
+    W = np.random.uniform(-1, 1, nt)
+
+    n = len(t)
+    y = np.zeros((n, len(y0)))
+    y[0] = y0
+    for i in range(n - 1):
+
+        # specify the random wind stress forcing
+        xi_1 = f_ann*np.cos(2*np.pi*t[i]/tau) + f_ran*W[i]*(tau_cor/dt)
+
+        # the rest of the RK4 scheme
+        h = t[i + 1] - t[i]
+        k1 = h * f(y[i], t[i], xi_1)
+        k2 = h * f(y[i] + 0.5 * k1, t[i] + 0.5 * h, xi_1)
+        k3 = h * f(y[i] + 0.5 * k2, t[i] + 0.5 * h, xi_1)
+        k4 = h * f(y[i] + k3, t[i + 1], xi_1)
+        y[i + 1] = y[i] + (k1 + 2 * k2 + 2 * k3 + k4) / 6
+
+    return y
+
+def enso_taskE(y,t,xi_1):
+    """RK4 scheme for task E where the coupling parameter varies with time"""
+
+    # define the global variables for Task D
+    e_n = 0.0 # no non-linearity for task D
+    mu_0 = 2/3 # set back to critical value
+    mu_ann = 0.2
+    tau = 12/2 # months non-dimensionalised
+    #f_ann = 0.02
+    #f_ran = 0.2
+    #tau_cor = 1/60 * 2 # 1 day non-dimensionalised 2 months = 60 days
+
+    dt = 1/30 # 1 day non-dimensionalised 2 months = 60 days
+    nt = int(5*41/dt)
+
+    # set W as a range of random numbers between -1 and 1
+    #W = np.random.uniform(-1, 1, nt)
+
+    # define the coupling parameter
+    mu = mu_0*(1 + mu_ann*np.cos(2*np.pi*t/tau - 5*np.pi/6))
+
+    # define the thermocline slope
+    b = b_0*mu
+
+    # define the Bjerknes positive feedback process
+    R = gamma*b - c
+
+    # define the wind stress function
+    #xi_1 = f_ann*np.cos(2*np.pi*t/tau) + f_ran*W*(tau_cor/dt)
+
+    # define the ODEs
+    dTdt = R*y[0] + gamma*y[1] - e_n*(y[1] + b*y[0])**3 + gamma*xi_1 + xi_2
+    dSdt = -r*y[1] - alpha*b*y[0] - alpha*xi_1
+
+    return np.array([dTdt, dSdt])
+
+def Task_E(dt=1/30, no_periods=5, len_period=41):
+    """
+    Task E: Testing the stochastic initiation hypothesis by adding randome
+    wind stress forcing to the linear model.
+    :param dt: time step size (one day in this case).
+    :param no_periods: number of periods to run the model for.
+    :param len_period: length of a single period.
+    :return:
+    none.
+    """
+
+    # set up the time step parameters
+    dt = dt
+    nt = int(no_periods*len_period/dt)
+    t = np.linspace(0,no_periods*len_period,nt)/tnd
+
+    # define the initial conditions
+    T_init = 1.125/Tnd
+    h_init = 0.0/hnd
+    # for the Rk4 scheme
+    y0 = [1.125/Tnd, 0/hnd]
+
+    # define the parameters
+    mu = mu_c = 2/3
+    e_n = 0.0
+    xi_1 = 0.0
+
+    # define the global variables for Task D
+    #e_n = 0.0 # no non-linearity for task D
+    mu_0 = 0.75 # set back to critical value
+    mu_ann = 0.2
+    tau = 12/2 # months non-dimensionalised
+    f_ann = 0.02
+    f_ran = 0.2
+    tau_cor = 1/30 # 1 day non-dimensionalised 2 months = 60 days
+
+
+    # set up the parameters for the annual cycle
+    mu_ann = 0.2
+    mu_0 = 2/3 # neutral case for mu
+    tau = 12/tnd # 12 months in units of tnd (time normalised)
+
+    # define the value for non-linearity
+    e_n = 0.0 # turns non-linearity off
+
+    # redimensionalise time
+    t = t*tnd
+
+    # initialize the RK4 scheme
+    y = rk4(lambda y, t: enso(y, t, mu, e_n, xi_1, annual_mu=True), y0, t,
+            nt, xi_1_forcing=True)
+    sst_anomaly, thermocline_depth = y[:,0], y[:,1]
+
+    # plot a phase space plot for this case
+    # mu = annual cycle, e_n = 0.1, xi_1 = random wind stress forcing
+    cmap = plt.cm.get_cmap('viridis')
+    # plot the phase space plot
+    plt.scatter(sst_anomaly, thermocline_depth, c=t, cmap=cmap,s=0.8, label =
+    '$\mu$ ' '=' 'annual cycle, ' '$e_n$ = ' '0.1, ' '$xi_1$ = ' 'random wind stress forcing')
+    # set x-label
+    plt.xlabel('SST anomaly ($^\circ$C)')
+    # set y-label
+    plt.ylabel('Thermocline depth (10m)')
+    # specify legend
+    plt.legend(loc='upper right')
+    # specify a tight layout
+    plt.tight_layout()
+    # specify a shared colorbar with the label 'Time (fraction)'
+    plt.colorbar(plt.cm.ScalarMappable(cmap=cmap), label='Time (fraction)')
+    # show the figure
+    plt.show()
+    # save the figure
+    plt.savefig('Task_E_phase_space_RK4_annual_cycle_linear_random_wind_stress_forcing.png')
+
+    # plot the time series of temperature
+    plt.plot(t, sst_anomaly, label='SST anomaly ($^\circ$C)')
+    # set x-label
+    plt.xlabel('Time (months)')
+    # set y-label
+    plt.ylabel('SST anomaly ($^\circ$C)')
+    # specify legend
+    plt.legend(loc='upper right')
+    # include text in the upper left with the parameters
+    # mu = annual cycle, e_n = 0.1, xi_1 = random wind stress forcing
+    plt.text(0.05, 6.2, '$\mu$ ' '=' 'annual cycle, ' '$e_n$ = ' '0.1, ' '$xi_1$ = ' 'random wind stress forcing')
+    # specify a tight layout
+    plt.tight_layout()
+    # show the figure
+    plt.show()
+    # save the figure
+    plt.savefig('Task_E_time_series_RK4_annual_cycle_linear_random_wind_stress_forcing.png')
+
+# now run task E
+#Task_E()
+
+# move onto task F
 
 
 
@@ -653,25 +1182,8 @@ def Task_B(dt=0.02, no_periods=5, len_period=41):
 
 
 
+#%%
 
+#%%
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# copy format from Hette for Task G ensemble plotting
-
-#plot_ensemble(RK4, T_init, h_init, dt, nt=nt, mu=mu, params=params, n_members=n_members, mu_ann=mu_ann T_a=T_a, h_a=h_a...
 #%%

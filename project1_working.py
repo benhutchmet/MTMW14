@@ -468,25 +468,6 @@ def eigenvalue_analysis_euler(T_init, h_init, mu, e_n, xi_1, dt, nt):
 
     return mag_eigenvalues
 
-# define a function for the jacobian matrix of the simple euler scheme for the ROM
-def jacobian(T, h, mu, e_n, xi_1):
-    """
-    Function to calculate the jacobian matrix for the simple euler scheme.
-    --------------------------------
-    Input:
-    T: temperature.
-    h: thermocline depth.
-    mu: parameter for the ROM.
-    e_n: parameter for the ROM.
-    xi_1: parameter for the ROM.
-    --------------------------------
-    Returns:
-    J: jacobian matrix.
-    """
-    # calculate the jacobian matrix
-    J = np.array([[-mu * T, 0], [0, -mu * h]])
-
-    return J
 
 # write a function that will plot the magnitude of the eigenvalues for an array of timesteps (four different values of dt)
 def plot_eigenvalues_euler(T_init, h_init, mu, e_n, xi_1, dt, nt):
@@ -609,15 +590,59 @@ def Task_A_stability_analysis(dt=0.02, no_periods=1, len_period=41):
     plot_eigenvalues_euler(T_init, h_init, mu, e_n, xi_1, dt, nt)
 
     # call the function to plot the stabiity of the RK4 scheme
-    #rk4_stability()
+    rk4_stability()
 
     # call the function to plot the stabiity of the Euler scheme
     Euler_stability()
 
 # test the stability analysis
-Task_A_stability_analysis()
+# Task_A_stability_analysis()
 
+def Task_B(dt=0.02, no_periods=5, len_period=41):
+    """
+    Function to test the behaviour of the ROM with sub-critical and
+    super-critical settings of the coupling parameter mu.
+    --------------------------------
+    Inputs:
+    None.
+    --------------------------------
+    Returns:
+    None.
+    """
 
+    # set up the time step parameters
+    dt = dt
+    nt = int(no_periods*len_period/dt)
+
+    # define the initial conditions
+    T_init = 1.125/Tnd
+    h_init = 0.0/hnd
+    # for the Rk4 scheme
+    y0 = [1.125/Tnd, 0/hnd]
+
+    # define the parameters
+    mu = mu_c = 2/3
+    e_n = 0.0
+    xi_1 = 0.0
+
+    # define the sub-critical and super-critical values of mu
+    mu_sub = 0.5
+    mu_sup = 1.0
+
+    # initialize the RK4 scheme for the sub-critical case
+    y_sub = rk4(lambda y, t: enso(y, t, mu_sub, e_n, xi_1, annual_mu=False), y0,
+                t, nt, xi_1_forcing=False)
+
+    # initialize the RK4 scheme for the super-critical case
+    y_sup = rk4(lambda y, t: enso(y, t, mu_sup, e_n, xi_1, annual_mu=False), y0,
+                t, nt, xi_1_forcing=False)
+
+    # specify the sst anomalies and thermocline depths for each case
+    sst_anomaly_sub, thermocline_depth_sub = y_sub[:,0], y_sub[:,1]
+    sst_anomaly_sup, thermocline_depth_sup = y_sup[:,0], y_sup[:,1]
+
+    # redimensionalise time
+    t = t*tnd
 
 
 
